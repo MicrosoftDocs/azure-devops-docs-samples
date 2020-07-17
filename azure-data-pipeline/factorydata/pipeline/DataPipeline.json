@@ -1,0 +1,159 @@
+{
+	"name": "DataPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "TransformData",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "CopyData",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Shared/transformData",
+					"baseParameters": {
+						"input": {
+							"value": "@pipeline().parameters.datafile",
+							"type": "Expression"
+						},
+						"storage_account_name": {
+							"value": "@variables('storage_account_name')",
+							"type": "Expression"
+						},
+						"storage_container_name": {
+							"value": "@variables('storage_container_name')",
+							"type": "Expression"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureDatabricks1",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "CopyData",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobStorageWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "RawDataset",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "PreparedDataset",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "TrainModel",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "TransformData",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Shared/traindata",
+					"baseParameters": {
+						"input": {
+							"value": "@pipeline().parameters.datafile",
+							"type": "Expression"
+						},
+						"storage_account_name": {
+							"value": "@variables('storage_account_name')",
+							"type": "Expression"
+						},
+						"storage_container_name": {
+							"value": "@variables('storage_container_name')",
+							"type": "Expression"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureDatabricks1",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"datafile": {
+				"type": "string",
+				"defaultValue": "sample.csv"
+			}
+		},
+		"variables": {
+			"storage_account_name": {
+				"type": "String",
+				"defaultValue": "yourstorageaccount"
+			},
+			"storage_container_name": {
+				"type": "String",
+				"defaultValue": "prepareddata"
+			}
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

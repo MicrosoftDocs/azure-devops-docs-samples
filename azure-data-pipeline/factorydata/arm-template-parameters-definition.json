@@ -1,0 +1,11 @@
+{
+    "Microsoft.DataFactory/factories/pipelines": {
+        "properties": {
+            "variables": {
+                "*": {
+                    "defaultValue": "="
+                }
+            }
+        }
+    }
+}

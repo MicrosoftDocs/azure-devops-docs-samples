@@ -1,0 +1,86 @@
+name: CICD
+pr:
+  branches:
+    include:
+    - master
+    - adf_publish
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - scripts/
+
+variables:
+    - group: datapipeline-vg
+    - group: keys-vg
+pool:
+    vmImage: ubuntu-latest
+
+    
+stages:
+- stage: 'CI'
+  displayName: 'CI'
+  jobs:
+  - job: "CI_Job"
+    displayName: "CI Job"
+    # The CI stage produces two artifacts (notebooks and ADF pipelines).
+    # The pipelines Azure Resource Manager templates are stored in a technical branch "adf_publish"
+    steps:
+    - checkout: self
+    - script: dir $(Build.SourcesDirectory)/$(Build.Repository.Name)
+    - publish: $(Build.SourcesDirectory)/$(Build.Repository.Name)/notebooks
+      artifact: notebooks
+    - checkout: git://${{variables['System.TeamProject']}}@adf_publish
+    - script: dir $(Build.SourcesDirectory)/$(Build.Repository.Name)
+    - publish: $(Build.SourcesDirectory)/$(Build.Repository.Name)/$(DATA_FACTORY_DEV_NAME)
+      artifact: adf-pipelines
+- stage: 'CD'
+  displayName: 'CD'
+  jobs:
+  - deployment: "Deploy_to_Databricks"
+    displayName: 'Deploy to Databricks'
+    timeoutInMinutes: 0
+    environment: qa
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - task: UsePythonVersion@0
+              inputs:
+                versionSpec: '3.x'
+                addToPath: true
+                architecture: 'x64'
+              displayName: 'Use Python3'
+            # Need to install DevOps for Azure Databricks extension
+            - task: configuredatabricks@0
+              inputs:
+                url: '$(DATABRICKS_URL)'
+                token: '$(databricks-token)'
+              displayName: 'Configure Databricks CLI'    
+
+            - task: deploynotebooks@0
+              inputs:
+                notebooksFolderPath: '$(Pipeline.Workspace)/notebooks'
+                workspaceFolder: '/Shared'
+              displayName: 'Deploy (copy) data processing notebook to the Databricks cluster'
+  - deployment: "Deploy_to_ADF"
+    displayName: 'Deploy to ADF'
+    timeoutInMinutes: 0
+    environment: qa
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - task: AzureResourceGroupDeployment@2
+              displayName: 'Deploy ADF resources'
+              inputs:
+                azureSubscription: $(AZURE_RM_CONNECTION)
+                resourceGroupName: $(RESOURCE_GROUP)
+                location: $(LOCATION)
+                csmFile: '$(Pipeline.Workspace)/adf-pipelines/ARMTemplateForFactory.json'
+                csmParametersFile: '$(Pipeline.Workspace)/adf-pipelines/ARMTemplateParametersForFactory.json'
+                overrideParameters: -factoryName "$(DATA_FACTORY_TEST_NAME)"
+                                    -DataPipeline_properties_variables_storage_account_name_defaultValue "$(STORAGE_ACCOUNT_NAME)"
+                                    -DataPipeline_properties_variables_storage_container_name_defaultValue "$(STORAGE_CONTAINER_NAME)"
