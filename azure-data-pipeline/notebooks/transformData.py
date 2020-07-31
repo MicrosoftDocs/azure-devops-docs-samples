@@ -1,11 +1,10 @@
-# Databricks notebook source
+# get storage account name, container name from input
 dbutils.widgets.text("input", "","")
 datafile = dbutils.widgets.get("input")
-#datafile = "sample.csv"
 storage_account_name = getArgument("storage_account_name")
 storage_container_name = getArgument("storage_container_name")
 
-#mount the blob storage that represents the target data
+# mount the blob storage that represents the target data
 mount_point = "/mnt/prepared"
 if not any(mount.mountPoint == mount_point for mount in dbutils.fs.mounts()): 
   dbutils.fs.mount(
@@ -19,11 +18,9 @@ df = spark.read.format("csv")\
 .option("header",'true') \
 .load(mount_point+"/"+datafile)
 
-# transform the dataframe and keep only the 2 columns that are needed for this model training
+# transformation - keep only 2 features - MinTemp (minimum temperature) and MaxTemp (maximum temperature) - that are relevant for the training
 df = df.select('MinTemp','MaxTemp').dropna()
+
+# save the transformed file as "transformed.csv"
 filepath_to_save = '/dbfs' + mount_point + '/transformed.csv'
 df.toPandas().to_csv(filepath_to_save,mode = 'w', index=False)
-
-
-# COMMAND ----------
-
