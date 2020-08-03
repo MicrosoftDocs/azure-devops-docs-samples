@@ -1,0 +1,34 @@
+name: Test pipeline
+pr: none
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - scripts/
+
+variables:
+    - group: datapipeline-vg
+pool:
+    vmImage: ubuntu-latest
+
+    
+stages:
+- stage: 'Test'
+  displayName: 'Test'
+  jobs:
+    - job: "Integration_test_job"
+      displayName: "Integration test job"
+      #dependsOn: [Deploy_to_Databricks, Deploy_to_ADF]
+      pool:
+        vmImage: 'ubuntu-latest'
+      timeoutInMinutes: 0
+      steps:
+        - task: AzurePowerShell@4
+          displayName: 'Execute ADF Pipeline'
+          inputs:
+            azureSubscription: $(AZURE_RM_CONNECTION)
+            ScriptPath: '$(Build.SourcesDirectory)/scripts/Invoke-ADFPipeline.ps1'
+            ScriptArguments: '-ResourceGroupName $(RESOURCE_GROUP) -DataFactoryName $(DATA_FACTORY_TEST_NAME) -PipelineName $(ADF_PIPELINE_NAME)'
+            azurePowerShellVersion: LatestVersion
