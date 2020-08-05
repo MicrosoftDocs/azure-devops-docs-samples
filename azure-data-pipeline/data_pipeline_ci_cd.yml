@@ -30,7 +30,7 @@ stages:
     steps:
     - checkout: self
     - script: dir $(Build.SourcesDirectory)/$(Build.Repository.Name)
-    - publish: $(Build.SourcesDirectory)/$(Build.Repository.Name)/notebooks
+    - publish: $(Build.SourcesDirectory)/$(Build.Repository.Name)/azure-data-pipeline/notebooks
       artifact: notebooks
     - checkout: git://${{variables['System.TeamProject']}}@adf_publish
     - script: dir $(Build.SourcesDirectory)/$(Build.Repository.Name)
